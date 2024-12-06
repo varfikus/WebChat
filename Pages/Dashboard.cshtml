@@ -1,0 +1,193 @@
+﻿@page
+@model WebChat.Pages.DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+@{
+    Layout = "Layout";
+}
+
+<h1>Welcome to your Dashboard</h1>
+<div id="dashboard">
+    <div id="chat-buttons">
+        <!-- Chat buttons will be dynamically loaded here -->
+    </div>
+    <div id="chat-container" style="display: none; position: relative;">
+        <button onclick="closeChat()" style="position: absolute; top: 10px; right: 10px;">Close</button>
+        <div id="chat-content"></div>
+    </div>
+</div>
+
+<script>
+    let currentChatId = null; 
+
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(`/chatHub`, { transport: signalR.HttpTransportType.WebSockets })
+        .withAutomaticReconnect([0, 2000, 10000, 30000])
+        .build();
+
+    async function startSignalRConnection() {
+        try {
+            await connection.start();
+            console.log("SignalR Connected");
+        } catch (err) {
+            console.error("SignalR Connection Error:", err);
+            setTimeout(startSignalRConnection, 1000);
+        }
+    }
+
+    function scrollToBottom() {
+        const messageList = document.getElementById('message-list');
+        const lastMessage = messageList.lastElementChild;
+        if (lastMessage) {
+            lastMessage.scrollIntoView({ behavior: 'instant', block: 'end' });
+        }
+    }
+
+    async function loadChats() {
+        const userId = localStorage.getItem('userId');
+
+        if (!userId) {
+            console.error('User ID is not found in localStorage.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/chat/GetUserChats?userId=${userId}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to load chats.');
+            }
+
+            const chats = await response.json();
+            const chatButtonsContainer = document.getElementById('chat-buttons');
+            chatButtonsContainer.innerHTML = '';
+
+            chats.forEach(chat => {
+                const button = document.createElement('button');
+                button.textContent = chat.name;
+                button.onclick = () => openAndRefreshChat(chat.id);
+                button.dataset.chatId = chat.id; 
+                chatButtonsContainer.appendChild(button);
+            });
+
+        } catch (error) {
+            console.error('Error loading chats:', error);
+        }
+    }
+
+    function closeChat() {
+        document.getElementById('chat-container').style.display = 'none';
+        document.getElementById('chat-content').innerHTML = '';
+    }
+
+    async function updateNewMessages() {
+        try {
+            const response = await fetch(`/api/message/NewMessages`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            data.forEach(chatInfo => {
+                const chatButton = document.querySelector(`button[data-chat-id="${chatInfo.chatId}"]`);
+                if (chatButton) {
+                    const baseText = chatButton.dataset.baseText || chatButton.textContent.replace(/\(\d+ new\)/, '').trim();
+                    chatButton.dataset.baseText = baseText;
+
+                    if (chatInfo.newMessagesCount > 0) {
+                        chatButton.textContent = `${baseText} (${chatInfo.newMessagesCount} new)`;
+
+                        openAndRefreshChat(currentChatId);
+                    } else {
+                        chatButton.textContent = baseText;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error updating new messages:', error);
+        }
+    }
+
+    setInterval(updateNewMessages, 5000);
+
+    async function openAndRefreshChat(chatId) {
+        currentChatId = chatId;
+
+        const chatContainer = document.getElementById('chat-container');
+        const chatContent = document.getElementById('chat-content');
+        const messageList = document.getElementById('message-list');
+
+        try {
+            // Загружаем структуру чата
+            const chatResponse = await fetch(`/Chat/${chatId}`);
+            if (!chatResponse.ok) throw new Error('Failed to load chat structure.');
+
+            const chatHtml = await chatResponse.text();
+            chatContent.innerHTML = chatHtml;
+            chatContainer.style.display = 'block'; // Убедимся, что контейнер отображается
+
+            // Загружаем сообщения для чата
+            const messageResponse = await fetch(`/api/chat/${chatId}`);
+            if (!messageResponse.ok) throw new Error('Failed to load chat messages.');
+
+            const messages = await messageResponse.json();
+
+            // Перезаписываем список сообщений
+            messageList.innerHTML = '';
+            messages.forEach(message => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${message.userName}:</strong> ${message.content}<br /><small>${new Date(message.timestamp).toLocaleString()}</small>`;
+                messageList.appendChild(li);
+            });
+
+            // Сбрасываем счетчик сообщений для текущего чата
+            const chatButton = document.querySelector(`button[data-chat-id="${chatId}"]`);
+            if (chatButton) {
+                const baseText = chatButton.dataset.baseText || chatButton.textContent.replace(/\(\d+ new\)/, '').trim();
+                chatButton.textContent = baseText;
+            }
+
+        } catch (error) {
+            console.error('Error loading or refreshing chat:', error);
+        }
+
+        // Прокручиваем вниз, чтобы показать последнее сообщение
+        scrollToBottom();
+    }
+
+    async function sendMessage(chatId) {
+        const messageText = document.getElementById('message-text').value;
+        const userId = localStorage.getItem('userId');
+
+        if (!messageText.trim()) {
+            alert("Message cannot be empty!");
+            return;
+        }
+
+        const messageData = {
+            chatId: chatId,
+            userId: userId,
+            content: messageText
+        };
+
+        try {
+            const response = await fetch('/api/message/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(messageData),
+            });
+
+            if (!response.ok) throw new Error('Failed to send message.');
+
+            await openAndRefreshChat(chatId);
+
+            document.getElementById('message-text').value = '';
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    }
+
+    window.onload = loadChats; 
+</script>

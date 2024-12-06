@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using WebChat.Models;
 using WebChat.Services.Interfaces;
 
@@ -13,9 +14,24 @@ namespace WebChat.Services.Implementations
             _context = context;
         }
 
-        public async Task<Message> GetMessageAsync(int id)
+        public async Task<User?> GetMessageAuthor(int id)
         {
-            return await _context.Messages.FindAsync(id);
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == id);
+        }
+
+        public async Task<IEnumerable<Message>> GetMessagesByChatIdAsync(int chatId)
+        {
+            return await _context.Messages
+                .Where(m => m.ChatId == chatId)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Message>> GetMessageAsync(int chatId)
+        {
+            return await _context.Messages
+                .Where(m => m.ChatId == chatId)
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<Message>> GetAllMessagesAsync()

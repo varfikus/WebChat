@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WebChat.Models;
 using WebChat.Services.Interfaces;
 
@@ -11,6 +13,36 @@ namespace WebChat.Services.Implementations
         public UserService(ChatContext context)
         {
             _context = context;
+        }
+
+        public async Task<User> AuthenticateUserAsync(string email, string password)
+        {
+            try
+            {
+                return await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == email && u.Password == password);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                throw;
+            }
+        }
+
+
+        public async Task<User> AuthenticateAsync(string email, string password)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                return null; 
+            }
+
+            return user;
+        }
+        public async Task<User> GetUserAsync(string token)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.Token == token);
         }
 
         public async Task<User> GetUserAsync(int id)

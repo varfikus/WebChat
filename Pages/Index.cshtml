@@ -1,0 +1,140 @@
+﻿@page
+@model WebChat.Pages.IndexModel
+@{
+    ViewData["Title"] = "Chat Application";
+}
+@{
+    Layout = "Layout";
+}
+
+<div class="auth-container">
+    <div class="toggle-buttons">
+        <button id="btnLogin" class="log-type-btn active" onclick="toggleLogType('Login')">Login</button>
+        <button id="btnReg" class="log-type-btn" onclick="toggleLogType('Reg')">Register</button>
+        <input type="hidden" name="LogType" id="LogType" value="Login" />
+    </div>
+
+    <div id="loginFields" class="form-section" style="display: block;">
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="LoginEmail">Email/Username:</label>
+                <input type="text" id="LoginEmail" name="Email" required autocomplete="email" />
+            </div>
+            <div class="form-group">
+                <label for="LoginPassword">Password:</label>
+                <input type="password" id="LoginPassword" name="Password" required autocomplete="current-password" />
+            </div>
+            <button type="button" class="btn btn-primary" onclick="login()">Login</button>
+        </form>
+    </div>
+
+    <div id="registrationFields" class="form-section" style="display: none;">
+        <form id="registrationForm">
+            <div class="form-group">
+                <label for="Username">Username:</label>
+                <input type="text" id="Username" name="Username" autocomplete="username" required />
+            </div>
+            <div class="form-group">
+                <label for="Email">Email:</label>
+                <input type="email" id="Email" name="Email" autocomplete="email" required />
+            </div>
+            <div class="form-group">
+                <label for="RegPassword">Password:</label>
+                <input type="password" id="RegPassword" name="Password" autocomplete="new-password" required />
+            </div>
+            <button type="button" class="btn btn-primary" onclick="register()">Register</button>
+        </form>
+    </div>
+
+    <div id="error-popup" class="popup" style="display: none;">
+        <span class="close-btn" onclick="closePopup()">&times;</span>
+        <p id="error-message"></p>
+    </div>
+</div>
+
+<script>
+    function toggleLogType(logType) {
+        const loginFields = document.getElementById("loginFields");
+        const regFields = document.getElementById("registrationFields");
+        const btnLogin = document.getElementById("btnLogin");
+        const btnReg = document.getElementById("btnReg");
+
+        btnLogin.classList.remove("active");
+        btnReg.classList.remove("active");
+
+        if (logType === "Login") {
+            loginFields.style.display = "block";
+            regFields.style.display = "none";
+            btnLogin.classList.add("active");
+        } else {
+            loginFields.style.display = "none";
+            regFields.style.display = "block";
+            btnReg.classList.add("active");
+        }
+
+        document.getElementById("LogType").value = logType;
+    }
+
+    async function login() {
+        const email = document.getElementById("LoginEmail").value;
+        const password = document.getElementById("LoginPassword").value;
+
+        try {
+            const response = await fetch('/api/user/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to login.');
+            }
+
+            const { userId } = await response.json();
+            localStorage.setItem('userId', userId);
+
+            window.location.href = "/dashboard";
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+
+    async function register() {
+        const username = document.getElementById("Username").value;
+        const email = document.getElementById("Email").value;
+        const password = document.getElementById("RegPassword").value;
+
+        try {
+            const response = await fetch('/api/user/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to register.');
+            }
+
+            alert('Registration successful! Please login.');
+            toggleLogType('Login');
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+
+    function showError(message) {
+        const errorPopup = document.getElementById("error-popup");
+        document.getElementById("error-message").innerText = message;
+        errorPopup.style.display = "block";
+    }
+
+    function closePopup() {
+        document.getElementById("error-popup").style.display = "none";
+    }
+
+    window.onload = function () {
+        toggleLogType('Login');
+    };
+</script>

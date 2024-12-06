@@ -1,0 +1,176 @@
+﻿@page "{chatId:int?}"
+@using WebChat.Pages
+@model ChatModel
+@* @{
+    Layout = "Layout";
+} *@
+
+<h2>@Model.Chat.Name</h2>
+<div>
+    <div>
+        <ul id="message-list">
+            @foreach (var message in Model.Messages)
+            {
+                <li>
+                    <strong id="username-@message.UserId">@message.UserId</strong>: @message.Content<br />
+                    <small>@message.Timestamp.ToString("g")</small>
+                </li>
+            }
+        </ul>
+    </div>
+    <div class="message-input">
+        <textarea id="message-text" placeholder="Type your message here..."></textarea>
+        <button onclick="sendMessage(@Model.Chat.Id)">Send</button>
+    </div>
+</div>
+
+<script>
+    let currentChatId = @Model.Chat.Id; 
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(`/chatHub?chatId=${currentChatId}`, { transport: signalR.HttpTransportType.WebSockets })
+        .withAutomaticReconnect([0, 2000, 10000, 30000])
+        .build();
+
+    async function startSignalRConnection() {
+        try {
+            await connection.start();
+            console.log("SignalR Connected");
+        } catch (err) {
+            console.error("SignalR Connection Error:", err);
+            setTimeout(startSignalRConnection, 1000);
+        }
+    }
+
+    connection.onclose(() => {
+        console.log("SignalR connection closed. Reconnecting...");
+        startSignalRConnection();
+    });
+
+    connection.on("ReceiveMessage", (userId, message) => {
+        refreshChatMessages(currentChatId);
+    });
+
+    function scrollToBottom() {
+        const messageList = document.getElementById('message-list');
+        const lastMessage = messageList.lastElementChild;
+        if (lastMessage) {
+            lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    }
+
+    async function sendMessage(chatId) {
+        const messageText = document.getElementById('message-text').value;
+        const userId = localStorage.getItem('userId');
+
+        if (!messageText.trim()) {
+            alert("Message cannot be empty!");
+            return;
+        }
+
+        const messageData = {
+            chatId: chatId,
+            userId: userId,
+            content: messageText
+        };
+
+        try {
+            const response = await fetch('/api/message/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(messageData),
+            });
+
+            if (!response.ok) throw new Error('Failed to send message.');
+
+            document.getElementById('message-text').value = ''; 
+            await refreshChatMessages(chatId); 
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    }
+
+    async function updateNewMessages() {
+        try {
+            const response = await fetch(`/api/message/NewMessages`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const data = response.json();
+
+            data.forEach(chatInfo => {
+                const chatButton = document.querySelector(`button[data-chat-id="${chatInfo.ChatId}"]`);
+                if (chatButton) {
+                    const baseText = chatButton.dataset.baseText || chatButton.textContent.replace(/\(\d+ new\)/, '').trim();
+                    chatButton.dataset.baseText = baseText;
+
+                    if (chatInfo.NewMessagesCount > 0) {
+                        chatButton.textContent = `${baseText} (${chatInfo.NewMessagesCount} new)`;
+                        openAndRefreshChat(currentChatId);
+                    } else {
+                        chatButton.textContent = baseText;
+                    }
+                }
+
+                if (typeof currentChatId !== 'undefined' && currentChatId === chatInfo.ChatId && chatInfo.NewMessagesCount > 0) {
+                    openAndRefreshChat(currentChatId);
+                }
+            });
+        } catch (error) {
+            console.error('Error updating new messages:', error);
+        }
+        scrollToBottom();
+    }
+
+    setInterval(updateNewMessages, 5000);
+
+    async function refreshChatMessages(chatId) {
+        try {
+            const response = await fetch(`/api/chat/${chatId}`);
+            if (!response.ok) throw new Error('Failed to load chat messages.');
+
+            const messages = await response.json();
+            const messageList = document.getElementById('message-list');
+            messageList.innerHTML = ''; 
+
+            const userIds = new Set(messages.map(message => message.userId));
+
+            const userIdToName = await fetchUsernames(userIds);
+
+            messages.forEach(message => {
+                const li = document.createElement('li');
+                const userName = userIdToName[message.userId] || "Unknown User";
+                li.innerHTML = `<strong>${userName}:</strong> ${message.content}<br /><small>${new Date(message.timestamp).toLocaleString()}</small>`;
+                messageList.appendChild(li);
+            });
+        } catch (error) {
+            console.error('Error refreshing chat messages:', error);
+        }
+        scrollToBottom();
+    }
+
+    async function fetchUsernames(userIds) {
+        const userIdToName = {};
+
+        await Promise.all(Array.from(userIds).map(async userId => {
+            try {
+                const response = await fetch(`/api/message/GetMessageAuthor/${userId}`);
+                if (!response.ok) {
+                    console.warn(`Failed to fetch username for userId: ${userId}`);
+                    return;
+                }
+                const user = await response.json();
+                userIdToName[userId] = user.name || "Unknown User";
+                scrollToBottom();
+            } catch (error) {
+                console.error(`Error fetching username for userId ${userId}:`, error);
+            }
+        }));
+
+        return userIdToName;
+    }
+
+    window.onload = async () => {
+        await refreshChatMessages(currentChatId); 
+    };
+</script>

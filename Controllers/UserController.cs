@@ -1,6 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using WebChat.Models;
 using WebChat.Services.Interfaces;
+using static WebChat.Models.User;
 
 namespace WebChat.Controllers
 {
@@ -15,6 +19,35 @@ namespace WebChat.Controllers
             _userService = userService;
         }
 
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] UserLoginDto loginDto)
+        {
+            var user = await _userService.AuthenticateUserAsync(loginDto.Email, loginDto.Password);
+            if (user == null) return Unauthorized("Invalid credentials.");
+
+            return Ok(new { UserId = user.Id });
+        }
+
+        [HttpGet("current-user")]
+        [Authorize]
+        public IActionResult GetCurrentUser()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            return Ok(new { UserId = userId });
+        }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] UserRegistrationDto registrationDto)
+        {
+            var user = await _userService.CreateUserAsync(new User
+            {
+                Username = registrationDto.Username,
+                Email = registrationDto.Email,
+                Password = registrationDto.Password 
+            });
+            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUser(int id)
         {
@@ -25,6 +58,29 @@ namespace WebChat.Controllers
             }
             return Ok(user);
         }
+
+
+        //[HttpGet("{token}")]
+        //public async Task<IActionResult> GetUser(string token)
+        //{
+        //    var user = await _userService.GetUserAsync(token);
+        //    if (user == null)
+        //    {
+        //        return NotFound();
+        //    }
+        //    return Ok(user);
+        //}
+
+        //[HttpGet("{id}")]
+        //public async Task<IActionResult> GetUser(int id)
+        //{
+        //    var user = await _userService.GetUserAsync(id);
+        //    if (user == null)
+        //    {
+        //        return NotFound();
+        //    }
+        //    return Ok(user);
+        //}
 
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()

@@ -20,7 +20,15 @@ namespace WebChat.Services.Implementations
 
         public async Task<IEnumerable<Chat>> GetAllChatsAsync()
         {
-            return await _context.Chats.ToListAsync();
+            return await _context.Chats.Include(c => c.UserChats).ToListAsync();
+        }
+
+        public async Task<IEnumerable<Chat>> GetUserChatsAsync(int userId)
+        {
+            return await _context.UserChats
+                .Where(uc => uc.UserId == userId)
+                .Select(uc => uc.Chat)
+                .ToListAsync();
         }
 
         public async Task<Chat> CreateChatAsync(Chat chat)

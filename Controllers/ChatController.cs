@@ -1,5 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using System.Text.Json;
 using WebChat.Models;
+using WebChat.Services.Implementations;
 using WebChat.Services.Interfaces;
 
 namespace WebChat.Controllers
@@ -9,10 +13,14 @@ namespace WebChat.Controllers
     public class ChatController : ControllerBase
     {
         private readonly IChatService _chatService;
+        private readonly IMessageService _messageService;
 
-        public ChatController(IChatService chatService)
+        public ChatViewModel ChatViewModel { get; set; }
+
+        public ChatController(IChatService chatService, IMessageService messageService)
         {
             _chatService = chatService;
+            _messageService = messageService;
         }
 
         [HttpGet("{id}")]
@@ -26,12 +34,53 @@ namespace WebChat.Controllers
             return Ok(chat);
         }
 
+        [HttpGet("/Chat/{chatId}")]
+        public async Task<IActionResult> Chat(int chatId)
+        {
+            var chat = await _chatService.GetChatAsync(chatId);
+            if (chat == null)
+            {
+                return NotFound("Chat not found.");
+            }
+
+            var messages = await _messageService.GetMessagesByChatIdAsync(chatId);
+
+            var viewModel = new ChatViewModel
+            {
+                Chat = chat,
+                Messages = messages
+            };
+
+            return Ok(viewModel); 
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAllChats()
         {
             var chats = await _chatService.GetAllChatsAsync();
             return Ok(chats);
         }
+
+        [HttpGet("GetUserChats")]
+        public async Task<IActionResult> GetUserChats(int userId)
+        {
+            var chats = await _chatService.GetUserChatsAsync(userId);
+            return Ok(chats);
+        }
+
+        //[HttpGet("GetUserChats")]
+        //[Authorize]
+        //public async Task<IActionResult> GetUserChats(int userId)
+        //{
+        //    var chats = await _chatService.GetUserChatsAsync(userId);
+
+        //    if (chats == null || !chats.Any())
+        //    {
+        //        return NotFound("No chats found for this user.");
+        //    }
+
+        //    return Ok(chats);
+        //}
 
         [HttpPost]
         public async Task<IActionResult> CreateChat(Chat chat)

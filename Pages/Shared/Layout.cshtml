@@ -1,0 +1,22 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - WebChat</title>
+    <link rel="stylesheet" href="~/css/styles.css" />
+    <script src="~/js/signalr-client.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@7.0.5/dist/browser/signalr.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>WebChat</h1>
+    </header>
+    <div id="content">
+        @RenderBody()
+    </div>
+    <footer>
+        &copy; 2024 WebChat
+    </footer>
+</body>
+</html>

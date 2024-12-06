@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using WebChat.Services.Implementations;
 
 namespace WebChat.Models;
 
@@ -15,7 +17,33 @@ public partial class Message
 
     public DateTime Timestamp { get; set; }
 
-    public virtual Chat Chat { get; set; } = null!;
+    //public string userName {get
+    //    {
+    //        if (string.IsNullOrEmpty(userName) && UserId != 0)
+    //        {
+    //            using (ChatContext context = new ChatContext())
+    //            {
+    //                var user = context.Users.FirstOrDefault(u => u.Id == UserId);
+    //                userName = userName ?? "Unknown User";
+    //            }
+    //        }
 
-    public virtual User User { get; set; } = null!;
+    //        return userName;
+    //    }
+    //    set
+    //    {
+    //        userName = value;
+    //    }
+    //}
 }
+    //public string userName;
+
+    //public string UserName
+    //{
+    //    
+    //} 
+
+
+    //public virtual Chat Chat { get; set; }
+
+    //public virtual User User { get; set; }

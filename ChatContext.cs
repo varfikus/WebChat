@@ -44,14 +44,14 @@ public partial class ChatContext : DbContext
             entity.Property(e => e.Timestamp)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone");
-            entity.HasOne(d => d.Chat).WithMany(p => p.Messages)
-                .HasForeignKey(d => d.ChatId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("Message_ChatId_fkey");
-            entity.HasOne(d => d.User).WithMany(p => p.Messages)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("Message_UserId_fkey");
+            //entity.HasOne(d => d.Chat).WithMany(p => p.Messages)
+            //    .HasForeignKey(d => d.ChatId)
+            //    .OnDelete(DeleteBehavior.ClientSetNull)
+            //    .HasConstraintName("Message_ChatId_fkey");
+            //entity.HasOne(d => d.User).WithMany(p => p.Messages)
+            //    .HasForeignKey(d => d.UserId)
+            //    .OnDelete(DeleteBehavior.ClientSetNull)
+            //    .HasConstraintName("Message_UserId_fkey");
         });
 
         modelBuilder.Entity<User>(entity =>
@@ -81,6 +81,23 @@ public partial class ChatContext : DbContext
                         j.ToTable("UserChat");
                     });
         });
+
+        //modelBuilder.Entity<MessageView>(entity =>
+        //{
+        //    entity.HasKey(e => e.Id); 
+        //    entity.HasIndex(e => new { e.UserId, e.MessageId }).IsUnique(); 
+        //    entity.Property(e => e.IsViewed)
+        //        .IsRequired()
+        //        .HasDefaultValue(false); 
+        //    entity.HasOne(e => e.User)
+        //        .WithMany()
+        //        .HasForeignKey(e => e.UserId)
+        //        .OnDelete(DeleteBehavior.Cascade);
+        //    entity.HasOne(e => e.Message)
+        //        .WithMany()
+        //        .HasForeignKey(e => e.MessageId)
+        //        .OnDelete(DeleteBehavior.Cascade);
+        //});
 
         OnModelCreatingPartial(modelBuilder);
     }
